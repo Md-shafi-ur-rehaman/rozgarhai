@@ -8,6 +8,7 @@ import projectRoutes from './routes/projects';
 import bidRoutes from './routes/bids';
 import contractRoutes from './routes/contracts';
 import paymentRoutes from './routes/payments';
+import gigRoutes from './routes/gigs';
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +32,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/bids', bidRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/gigs', gigRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

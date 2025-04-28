@@ -35,7 +35,7 @@ router.post('/register', async (req, res, next) => {
         name,
         email,
         password: hashedPassword,
-        role: role || 'JOBSEEKER'
+        role: role || 'FREELANCER'
       },
       select: {
         id: true,

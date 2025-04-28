@@ -1,12 +1,13 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { protect as authenticateToken, AuthRequest } from '../middleware/auth';
+import { protect, authorize, AuthRequest } from '../middleware/auth';
+import { CustomError } from '../middleware/errorHandler';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 // Get all projects with optional filters
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const { status, skill, search } = req.query;
     
@@ -63,12 +64,12 @@ router.get('/', async (req, res) => {
 
     res.json(projects);
   } catch (error) {
-    res.status(500).json({ error: 'Error fetching projects' });
+    next(error);
   }
 });
 
 // Get single project by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const project = await prisma.project.findUnique({
       where: { id: req.params.id },
@@ -102,115 +103,137 @@ router.get('/:id', async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      const error = new Error('Project not found') as CustomError;
+      error.statusCode = 404;
+      throw error;
     }
 
     res.json(project);
   } catch (error) {
-    res.status(500).json({ error: 'Error fetching project' });
+    next(error);
   }
 });
 
-// Create new project
-router.post('/', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const { title, description, budget, deadline, skills } = req.body;
-    const clientId = req.user!.id;
+// Create new project (Client only)
+router.post('/', 
+  protect, 
+  authorize('CLIENT'),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { title, description, budget, deadline, skills } = req.body;
+      const clientId = req.user!.id;
 
-    const project = await prisma.project.create({
-      data: {
-        title,
-        description,
-        budget,
-        deadline: new Date(deadline),
-        clientId,
-        skills: {
-          create: skills.map((skillId: string) => ({
-            skill: {
-              connect: { id: skillId },
-            },
-          })),
-        },
-      },
-      include: {
-        skills: {
-          include: {
-            skill: true,
+      const project = await prisma.project.create({
+        data: {
+          title,
+          description,
+          budget,
+          deadline: new Date(deadline),
+          clientId,
+          skills: {
+            create: skills.map((skillId: string) => ({
+              skill: {
+                connect: { id: skillId },
+              },
+            })),
           },
         },
-      },
-    });
+        include: {
+          skills: {
+            include: {
+              skill: true,
+            },
+          },
+        },
+      });
 
-    res.status(201).json(project);
-  } catch (error) {
-    res.status(500).json({ error: 'Error creating project' });
+      res.status(201).json(project);
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
-// Update project
-router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const { title, description, budget, deadline, status } = req.body;
-    const projectId = req.params.id;
-    const userId = req.user!.id;
+// Update project (Client only)
+router.put('/:id', 
+  protect, 
+  authorize('CLIENT'),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { title, description, budget, deadline, status } = req.body;
+      const projectId = req.params.id;
+      const userId = req.user!.id;
 
-    // Check if user owns the project
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-    });
+      // Check if user owns the project
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+      });
 
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      if (!project) {
+        const error = new Error('Project not found') as CustomError;
+        error.statusCode = 404;
+        throw error;
+      }
+
+      if (project.clientId !== userId) {
+        const error = new Error('Not authorized') as CustomError;
+        error.statusCode = 403;
+        throw error;
+      }
+
+      const updatedProject = await prisma.project.update({
+        where: { id: projectId },
+        data: {
+          title,
+          description,
+          budget,
+          deadline: deadline ? new Date(deadline) : undefined,
+          status,
+        },
+      });
+
+      res.json(updatedProject);
+    } catch (error) {
+      next(error);
     }
-
-    if (project.clientId !== userId) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-
-    const updatedProject = await prisma.project.update({
-      where: { id: projectId },
-      data: {
-        title,
-        description,
-        budget,
-        deadline: deadline ? new Date(deadline) : undefined,
-        status,
-      },
-    });
-
-    res.json(updatedProject);
-  } catch (error) {
-    res.status(500).json({ error: 'Error updating project' });
   }
-});
+);
 
-// Delete project
-router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const projectId = req.params.id;
-    const userId = req.user!.id;
+// Delete project (Client only)
+router.delete('/:id', 
+  protect, 
+  authorize('CLIENT'),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const projectId = req.params.id;
+      const userId = req.user!.id;
 
-    // Check if user owns the project
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-    });
+      // Check if user owns the project
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+      });
 
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      if (!project) {
+        const error = new Error('Project not found') as CustomError;
+        error.statusCode = 404;
+        throw error;
+      }
+
+      if (project.clientId !== userId) {
+        const error = new Error('Not authorized') as CustomError;
+        error.statusCode = 403;
+        throw error;
+      }
+
+      await prisma.project.delete({
+        where: { id: projectId },
+      });
+
+      res.json({ message: 'Project deleted successfully' });
+    } catch (error) {
+      next(error);
     }
-
-    if (project.clientId !== userId) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-
-    await prisma.project.delete({
-      where: { id: projectId },
-    });
-
-    res.json({ message: 'Project deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Error deleting project' });
   }
-});
+);
 
 export default router; 

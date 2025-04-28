@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { CustomError } from './errorHandler';
 
+
 const prisma = new PrismaClient();
 
 export interface AuthRequest extends Request {
@@ -15,6 +16,7 @@ export const protect = async (
   next: NextFunction
 ) => {
   try {
+    
     let token;
 
     if (
@@ -22,6 +24,8 @@ export const protect = async (
       req.headers.authorization.startsWith('Bearer')
     ) {
       token = req.headers.authorization.split(' ')[1];
+      console.log(token);
+      
     }
 
     if (!token) {
