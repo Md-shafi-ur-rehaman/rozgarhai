@@ -77,6 +77,20 @@ router.post('/',
       // Check if project exists and is open
       const project = await prisma.project.findUnique({
         where: { id: projectId },
+        include: {
+          client: {
+            select: {
+              id: true,
+              name: true,
+              clientProfile: true
+            }
+          },
+          skills: {
+            include: {
+              skill: true
+            }
+          }
+        }
       });
 
       if (!project) {
@@ -120,13 +134,72 @@ router.post('/',
             select: {
               id: true,
               name: true,
-              freelancerProfile: true,
-            },
+              freelancerProfile: {
+                select: {
+                  title: true,
+                  experience: true,
+                  location: true
+                }
+              }
+            }
           },
-        },
+          project: {
+            select: {
+              id: true,
+              title: true,
+              budget: true,
+              deadline: true,
+              status: true,
+              client: {
+                select: {
+                  id: true,
+                  name: true,
+                  clientProfile: true
+                }
+              }
+            }
+          }
+        }
       });
 
-      res.status(201).json(bid);
+      // Format the response
+      const formattedResponse = {
+        success: true,
+        data: {
+          bid: {
+            id: bid.id,
+            amount: bid.amount,
+            duration: bid.duration,
+            coverLetter: bid.coverLetter,
+            status: bid.status,
+            createdAt: bid.createdAt,
+            updatedAt: bid.updatedAt
+          },
+          project: {
+            id: bid.project.id,
+            title: bid.project.title,
+            budget: bid.project.budget,
+            deadline: bid.project.deadline,
+            status: bid.project.status,
+            client: {
+              id: bid.project.client.id,
+              name: bid.project.client.name,
+              profile: bid.project.client.clientProfile
+            }
+          },
+          freelancer: {
+            id: bid.freelancer.id,
+            name: bid.freelancer.name,
+            profile: {
+              title: bid.freelancer.freelancerProfile?.title,
+              experience: bid.freelancer.freelancerProfile?.experience,
+              location: bid.freelancer.freelancerProfile?.location
+            }
+          }
+        }
+      };
+
+      res.status(201).json(formattedResponse);
     } catch (error) {
       next(error);
     }
@@ -146,8 +219,31 @@ router.patch('/:id/status',
       const bid = await prisma.bid.findUnique({
         where: { id: bidId },
         include: {
-          project: true,
-        },
+          project: {
+            include: {
+              client: {
+                select: {
+                  id: true,
+                  name: true,
+                  clientProfile: true
+                }
+              }
+            }
+          },
+          freelancer: {
+            select: {
+              id: true,
+              name: true,
+              freelancerProfile: {
+                select: {
+                  title: true,
+                  experience: true,
+                  location: true
+                }
+              }
+            }
+          }
+        }
       });
 
       if (!bid) {
@@ -171,15 +267,38 @@ router.patch('/:id/status',
             select: {
               id: true,
               name: true,
-              freelancerProfile: true,
-            },
+              freelancerProfile: {
+                select: {
+                  title: true,
+                  experience: true,
+                  location: true
+                }
+              }
+            }
           },
-        },
+          project: {
+            select: {
+              id: true,
+              title: true,
+              budget: true,
+              deadline: true,
+              status: true,
+              client: {
+                select: {
+                  id: true,
+                  name: true,
+                  clientProfile: true
+                }
+              }
+            }
+          }
+        }
       });
 
+      let contract = null;
       // If bid is accepted, create a contract
       if (status === 'ACCEPTED') {
-        await prisma.contract.create({
+        contract = await prisma.contract.create({
           data: {
             projectId: bid.projectId,
             bidId: bid.id,
@@ -189,6 +308,37 @@ router.patch('/:id/status',
             amount: bid.amount,
             startDate: new Date(),
           },
+          include: {
+            project: {
+              select: {
+                id: true,
+                title: true,
+                budget: true,
+                deadline: true,
+                status: true
+              }
+            },
+            client: {
+              select: {
+                id: true,
+                name: true,
+                clientProfile: true
+              }
+            },
+            freelancer: {
+              select: {
+                id: true,
+                name: true,
+                freelancerProfile: {
+                  select: {
+                    title: true,
+                    experience: true,
+                    location: true
+                  }
+                }
+              }
+            }
+          }
         });
 
         // Update project status
@@ -198,7 +348,72 @@ router.patch('/:id/status',
         });
       }
 
-      res.json(updatedBid);
+      // Format the response
+      const formattedResponse = {
+        success: true,
+        data: {
+          bid: {
+            id: updatedBid.id,
+            amount: updatedBid.amount,
+            duration: updatedBid.duration,
+            coverLetter: updatedBid.coverLetter,
+            status: updatedBid.status,
+            createdAt: updatedBid.createdAt,
+            updatedAt: updatedBid.updatedAt
+          },
+          project: {
+            id: updatedBid.project.id,
+            title: updatedBid.project.title,
+            budget: updatedBid.project.budget,
+            deadline: updatedBid.project.deadline,
+            status: updatedBid.project.status,
+            client: {
+              id: updatedBid.project.client.id,
+              name: updatedBid.project.client.name,
+              profile: updatedBid.project.client.clientProfile
+            }
+          },
+          freelancer: {
+            id: updatedBid.freelancer.id,
+            name: updatedBid.freelancer.name,
+            profile: {
+              title: updatedBid.freelancer.freelancerProfile?.title,
+              experience: updatedBid.freelancer.freelancerProfile?.experience,
+              location: updatedBid.freelancer.freelancerProfile?.location
+            }
+          },
+          contract: contract ? {
+            id: contract.id,
+            terms: contract.terms,
+            amount: contract.amount,
+            startDate: contract.startDate,
+            status: contract.status,
+            project: {
+              id: contract.project.id,
+              title: contract.project.title,
+              budget: contract.project.budget,
+              deadline: contract.project.deadline,
+              status: contract.project.status
+            },
+            client: {
+              id: contract.client.id,
+              name: contract.client.name,
+              profile: contract.client.clientProfile
+            },
+            freelancer: {
+              id: contract.freelancer.id,
+              name: contract.freelancer.name,
+              profile: {
+                title: contract.freelancer.freelancerProfile?.title,
+                experience: contract.freelancer.freelancerProfile?.experience,
+                location: contract.freelancer.freelancerProfile?.location
+              }
+            }
+          } : null
+        }
+      };
+
+      res.json(formattedResponse);
     } catch (error) {
       next(error);
     }

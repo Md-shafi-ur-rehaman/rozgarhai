@@ -30,7 +30,7 @@ const projectQuerySchema = z.object({
     }).optional(),
     sortBy: z.enum(['createdAt', 'budget', 'deadline']).optional(),
     sortOrder: z.enum(['asc', 'desc']).optional()
-  })
+  }).optional()
 });
 
 // @route   GET /api/projects
