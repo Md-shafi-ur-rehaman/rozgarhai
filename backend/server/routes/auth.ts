@@ -58,7 +58,11 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
         id: true,
         name: true,
         email: true,
-        role: true
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        freelancerProfile: true,
+        clientProfile: true
       }
     });
 
@@ -69,11 +73,25 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
       { expiresIn: '30d' }
     );
 
+    // Calculate token expiration
+    const tokenExpiration = new Date();
+    tokenExpiration.setDate(tokenExpiration.getDate() + 30);
+
     res.status(201).json({
       success: true,
+      message: 'User registered successfully',
       data: {
-        user,
-        token
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          profile: user.role === 'FREELANCER' ? user.freelancerProfile : user.clientProfile
+        },
+        token,
+        tokenExpiration: tokenExpiration.toISOString()
       }
     });
   } catch (error) {
@@ -90,7 +108,18 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
 
     // Check if user exists
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        password: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        freelancerProfile: true,
+        clientProfile: true
+      }
     });
 
     if (!user) {
@@ -115,16 +144,25 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
       { expiresIn: '30d' }
     );
 
+    // Calculate token expiration
+    const tokenExpiration = new Date();
+    tokenExpiration.setDate(tokenExpiration.getDate() + 30);
+
     res.json({
       success: true,
+      message: 'Login successful',
       data: {
         user: {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          profile: user.role === 'FREELANCER' ? user.freelancerProfile : user.clientProfile
         },
-        token
+        token,
+        tokenExpiration: tokenExpiration.toISOString()
       }
     });
   } catch (error) {

@@ -106,14 +106,19 @@ Register a new user
   ```json
   {
     "success": true,
+    "message": "User registered successfully",
     "data": {
       "user": {
         "id": "string",
         "name": "string",
         "email": "string",
-        "role": "string"
+        "role": "FREELANCER" | "CLIENT",
+        "createdAt": "date",
+        "updatedAt": "date",
+        "profile": null
       },
-      "token": "string"
+      "token": "string",
+      "tokenExpiration": "date"
     }
   }
   ```
@@ -131,14 +136,19 @@ Login user
   ```json
   {
     "success": true,
+    "message": "Login successful",
     "data": {
       "user": {
         "id": "string",
         "name": "string",
         "email": "string",
-        "role": "string"
+        "role": "FREELANCER" | "CLIENT",
+        "createdAt": "date",
+        "updatedAt": "date",
+        "profile": object | null
       },
-      "token": "string"
+      "token": "string",
+      "tokenExpiration": "date"
     }
   }
   ```
@@ -190,206 +200,30 @@ Update user profile (Protected)
   }
   ```
 
-#### GET /api/users/:id
-Get user by ID (Protected)
-- **Output:**
-  ```json
-  {
-    "success": true,
-    "data": {
-      "id": "string",
-      "name": "string",
-      "email": "string",
-      "role": "string",
-      "freelancerProfile": object | null,
-      "clientProfile": object | null
-    }
-  }
-  ```
-
 ### Project Routes
 
 #### GET /api/projects
 Get all projects with optional filters
 - **Query Parameters:**
-  - `status`: Project status
-  - `skill`: Filter by skill
+  - `status`: OPEN | IN_PROGRESS | COMPLETED | CANCELLED
+  - `skill`: Filter by skill name
   - `search`: Search in title and description
-- **Output:**
-  ```json
-  [
-    {
-      "id": "string",
-      "title": "string",
-      "description": "string",
-      "budget": number,
-      "deadline": "date",
-      "status": "string",
-      "client": {
-        "id": "string",
-        "name": "string",
-        "clientProfile": object
-      },
-      "skills": [
-        {
-          "skill": {
-            "id": "string",
-            "name": "string"
-          }
-        }
-      ],
-      "bids": [
-        {
-          "id": "string",
-          "amount": number,
-          "status": "string"
-        }
-      ]
-    }
-  ]
-  ```
-
-#### GET /api/projects/:id
-Get single project by ID
+  - `minBudget`: Minimum budget amount
+  - `maxBudget`: Maximum budget amount
+  - `sortBy`: createdAt | budget | deadline
+  - `sortOrder`: asc | desc
 - **Output:**
   ```json
   {
-    "id": "string",
-    "title": "string",
-    "description": "string",
-    "budget": number,
-    "deadline": "date",
-    "status": "string",
-    "client": {
-      "id": "string",
-      "name": "string",
-      "clientProfile": object
-    },
-    "skills": [
+    "success": true,
+    "data": [
       {
-        "skill": {
-          "id": "string",
-          "name": "string"
-        }
-      }
-    ],
-    "bids": [
-      {
-        "id": "string",
-        "amount": number,
-        "status": "string",
-        "freelancer": {
-          "id": "string",
-          "name": "string",
-          "freelancerProfile": object
-        }
-      }
-    ],
-    "messages": array,
-    "contract": object
-  }
-  ```
-
-#### POST /api/projects
-Create new project (Protected - Client only)
-- **Input:**
-  ```json
-  {
-    "title": "string",
-    "description": "string",
-    "budget": number,
-    "deadline": "date",
-    "skills": ["string"]
-  }
-  ```
-- **Output:**
-  ```json
-  {
-    "id": "string",
-    "title": "string",
-    "description": "string",
-    "budget": number,
-    "deadline": "date",
-    "skills": [
-      {
-        "skill": {
-          "id": "string",
-          "name": "string"
-        }
-      }
-    ]
-  }
-  ```
-
-#### PUT /api/projects/:id
-Update project (Protected - Client only)
-- **Input:**
-  ```json
-  {
-    "title": "string",
-    "description": "string",
-    "budget": number,
-    "deadline": "date",
-    "status": "string"
-  }
-  ```
-- **Output:**
-  ```json
-  {
-    "id": "string",
-    "title": "string",
-    "description": "string",
-    "budget": number,
-    "deadline": "date",
-    "status": "string"
-  }
-  ```
-
-#### DELETE /api/projects/:id
-Delete project (Protected - Client only)
-- **Output:**
-  ```json
-  {
-    "message": "Project deleted successfully"
-  }
-  ```
-
-### Bid Routes
-
-#### GET /api/bids/project/:projectId
-Get all bids for a project
-- **Output:**
-  ```json
-  [
-    {
-      "id": "string",
-      "amount": number,
-      "duration": number,
-      "coverLetter": "string",
-      "status": "string",
-      "freelancer": {
-        "id": "string",
-        "name": "string",
-        "freelancerProfile": object
-      }
-    }
-  ]
-  ```
-
-#### GET /api/bids/freelancer/:freelancerId
-Get all bids by a freelancer
-- **Output:**
-  ```json
-  [
-    {
-      "id": "string",
-      "amount": number,
-      "duration": number,
-      "coverLetter": "string",
-      "status": "string",
-      "project": {
         "id": "string",
         "title": "string",
+        "description": "string",
+        "budget": number,
+        "deadline": "date",
+        "status": "string",
         "client": {
           "id": "string",
           "name": "string",
@@ -404,34 +238,32 @@ Get all bids by a freelancer
           }
         ]
       }
-    }
-  ]
-  ```
-
-#### POST /api/bids
-Create a bid (Protected - Freelancer only)
-- **Input:**
-  ```json
-  {
-    "projectId": "string",
-    "amount": number,
-    "duration": number,
-    "coverLetter": "string"
+    ]
   }
   ```
+
+### Bid Routes
+
+#### GET /api/bids/project/:projectId
+Get all bids for a project
 - **Output:**
   ```json
   {
-    "id": "string",
-    "amount": number,
-    "duration": number,
-    "coverLetter": "string",
-    "status": "PENDING",
-    "freelancer": {
-      "id": "string",
-      "name": "string",
-      "freelancerProfile": object
-    }
+    "success": true,
+    "data": [
+      {
+        "id": "string",
+        "amount": number,
+        "duration": number,
+        "coverLetter": "string",
+        "status": "string",
+        "freelancer": {
+          "id": "string",
+          "name": "string",
+          "freelancerProfile": object
+        }
+      }
+    ]
   }
   ```
 
@@ -446,73 +278,71 @@ Update bid status (Protected - Client only)
 - **Output:**
   ```json
   {
-    "id": "string",
-    "amount": number,
-    "duration": number,
-    "coverLetter": "string",
-    "status": "string",
-    "freelancer": {
-      "id": "string",
-      "name": "string",
-      "freelancerProfile": object
+    "success": true,
+    "data": {
+      "bid": {
+        "id": "string",
+        "amount": number,
+        "duration": number,
+        "coverLetter": "string",
+        "status": "string",
+        "createdAt": "date",
+        "updatedAt": "date"
+      },
+      "project": {
+        "id": "string",
+        "title": "string",
+        "budget": number,
+        "deadline": "date",
+        "status": "string",
+        "client": {
+          "id": "string",
+          "name": "string",
+          "profile": object
+        }
+      },
+      "freelancer": {
+        "id": "string",
+        "name": "string",
+        "profile": {
+          "title": "string",
+          "experience": number,
+          "location": "string"
+        }
+      },
+      "contract": {
+        "id": "string",
+        "terms": "string",
+        "amount": number,
+        "startDate": "date",
+        "status": "string",
+        "project": {
+          "id": "string",
+          "title": "string",
+          "budget": number,
+          "deadline": "date",
+          "status": "string"
+        },
+        "client": {
+          "id": "string",
+          "name": "string",
+          "profile": object
+        },
+        "freelancer": {
+          "id": "string",
+          "name": "string",
+          "profile": {
+            "title": "string",
+            "experience": number,
+            "location": "string"
+          }
+        }
+      }
     }
-  }
-  ```
-
-#### DELETE /api/bids/:id
-Withdraw bid (Protected - Freelancer only)
-- **Output:**
-  ```json
-  {
-    "message": "Bid withdrawn successfully"
   }
   ```
 
 ### Gig Routes
-
-#### POST /api/gigs
-Create a new gig (Protected - Freelancer only)
-- **Input:**
-  ```json
-  {
-    "title": "string",
-    "description": "string",
-    "price": number,
-    "deliveryTime": number,
-    "revisions": number,
-    "category": "string",
-    "subcategory": "string",
-    "tags": ["string"],
-    "images": ["string"],
-    "requirements": ["string"]
-  }
-  ```
-- **Output:**
-  ```json
-  {
-    "success": true,
-    "data": {
-      "id": "string",
-      "title": "string",
-      "description": "string",
-      "price": number,
-      "deliveryTime": number,
-      "revisions": number,
-      "category": "string",
-      "subcategory": "string",
-      "tags": ["string"],
-      "images": ["string"],
-      "requirements": ["string"],
-      "freelancer": {
-        "id": "string",
-        "name": "string",
-        "freelancerProfile": object
-      },
-      "createdAt": "date",
-      "status": "ACTIVE"
-    }
-  }
-  ```
 
 #### GET /api/gigs
 Get all gigs with optional filters
@@ -525,107 +355,63 @@ Get all gigs with optional filters
   - `sort`: Sort by price, rating, or date
 - **Output:**
   ```json
-  [
-    {
-      "id": "string",
-      "title": "string",
-      "description": "string",
-      "price": number,
-      "deliveryTime": number,
-      "revisions": number,
-      "category": "string",
-      "subcategory": "string",
-      "tags": ["string"],
-      "images": ["string"],
-      "requirements": ["string"],
-      "freelancer": {
-        "id": "string",
-        "name": "string",
-        "freelancerProfile": object
-      },
-      "rating": number,
-      "reviews": number,
-      "createdAt": "date",
-      "status": "string"
-    }
-  ]
-  ```
-
-#### GET /api/gigs/:id
-Get single gig by ID
-- **Output:**
-  ```json
-  {
-    "id": "string",
-    "title": "string",
-    "description": "string",
-    "price": number,
-    "deliveryTime": number,
-    "revisions": number,
-    "category": "string",
-    "subcategory": "string",
-    "tags": ["string"],
-    "images": ["string"],
-    "requirements": ["string"],
-    "freelancer": {
-      "id": "string",
-      "name": "string",
-      "freelancerProfile": object
-    },
-    "rating": number,
-    "reviews": [
-      {
-        "id": "string",
-        "rating": number,
-        "comment": "string",
-        "client": {
-          "id": "string",
-          "name": "string"
-        },
-        "createdAt": "date"
-      }
-    ],
-    "createdAt": "date",
-    "status": "string"
-  }
-  ```
-
-#### PUT /api/gigs/:id
-Update gig (Protected - Freelancer only)
-- **Input:**
-  ```json
-  {
-    "title": "string",
-    "description": "string",
-    "price": number,
-    "deliveryTime": number,
-    "revisions": number,
-    "category": "string",
-    "subcategory": "string",
-    "tags": ["string"],
-    "images": ["string"],
-    "requirements": ["string"],
-    "status": "ACTIVE" | "PAUSED" | "DELETED"
-  }
-  ```
-- **Output:**
-  ```json
   {
     "success": true,
     "data": {
-      "id": "string",
-      "title": "string",
-      "description": "string",
-      "price": number,
-      "deliveryTime": number,
-      "revisions": number,
-      "category": "string",
-      "subcategory": "string",
-      "tags": ["string"],
-      "images": ["string"],
-      "requirements": ["string"],
-      "status": "string",
-      "updatedAt": "date"
+      "gigs": [
+        {
+          "id": "string",
+          "title": "string",
+          "description": "string",
+          "pricing": {
+            "amount": number,
+            "currency": "USD",
+            "deliveryTime": number,
+            "revisions": number
+          },
+          "category": {
+            "main": "string",
+            "sub": "string"
+          },
+          "tags": ["string"],
+          "images": ["string"],
+          "requirements": ["string"],
+          "stats": {
+            "rating": number,
+            "reviewCount": number,
+            "orderCount": number
+          },
+          "freelancer": {
+            "id": "string",
+            "name": "string",
+            "title": "string",
+            "experience": "string",
+            "location": "string"
+          },
+          "recentReviews": [
+            {
+              "rating": number,
+              "comment": "string",
+              "date": "date"
+            }
+          ],
+          "createdAt": "date",
+          "updatedAt": "date"
+        }
+      ],
+      "meta": {
+        "total": number,
+        "filters": {
+          "category": "string" | null,
+          "subcategory": "string" | null,
+          "priceRange": {
+            "min": number | null,
+            "max": number | null
+          },
+          "search": "string" | null,
+          "sort": "price" | "rating" | "date" | null
+        }
+      }
     }
   }
   ```
@@ -648,7 +434,6 @@ Order a gig (Protected - Client only)
       "id": "string",
       "gigId": "string",
       "clientId": "string",
-      "freelancerId": "string",
       "requirements": "string",
       "deliveryTime": number,
       "revisions": number,
@@ -661,23 +446,75 @@ Order a gig (Protected - Client only)
 #### GET /api/gigs/orders
 Get all orders for a user (Protected)
 - **Query Parameters:**
-  - `status`: Filter by order status
-  - `role`: "client" or "freelancer"
+  - `status`: PENDING | IN_PROGRESS | COMPLETED | CANCELLED
 - **Output:**
   ```json
-  [
-    {
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "string",
+        "gig": {
+          "id": "string",
+          "title": "string",
+          "price": number,
+          "description": "string",
+          "deliveryTime": number,
+          "revisions": number,
+          "freelancer": {
+            "id": "string",
+            "name": "string",
+            "freelancerProfile": {
+              "title": "string",
+              "experience": "string",
+              "location": "string",
+              "description": "string"
+            }
+          }
+        },
+        "client": {
+          "id": "string",
+          "name": "string"
+        },
+        "requirements": "string",
+        "deliveryTime": number,
+        "revisions": number,
+        "status": "string",
+        "createdAt": "date"
+      }
+    ]
+  }
+  ```
+
+#### PATCH /api/gigs/orders/:id/status
+Update order status (Protected - Freelancer only)
+- **Input:**
+  ```json
+  {
+    "status": "IN_PROGRESS" | "CANCELLED"
+  }
+  ```
+- **Output:**
+  ```json
+  {
+    "success": true,
+    "data": {
       "id": "string",
       "gig": {
         "id": "string",
         "title": "string",
-        "price": number
+        "price": number,
+        "freelancer": {
+          "id": "string",
+          "name": "string",
+          "freelancerProfile": {
+            "title": "string",
+            "experience": "string",
+            "location": "string"
+          }
+        }
       },
       "client": {
-        "id": "string",
-        "name": "string"
-      },
-      "freelancer": {
         "id": "string",
         "name": "string"
       },
@@ -685,9 +522,10 @@ Get all orders for a user (Protected)
       "deliveryTime": number,
       "revisions": number,
       "status": "string",
-      "createdAt": "date"
+      "createdAt": "date",
+      "updatedAt": "date"
     }
-  ]
+  }
   ```
 
 ## Technologies Used
@@ -718,284 +556,3 @@ Get all orders for a user (Protected)
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-# Rozgarhai API Documentation
-
-## Authentication Routes
-
-### Register User
-- **POST** `/api/auth/register`
-- **Description**: Register a new user
-- **Body**:
-  ```json
-  {
-    "name": "string",
-    "email": "string",
-    "password": "string",
-    "role": "FREELANCER" | "CLIENT"
-  }
-  ```
-
-### Login User
-- **POST** `/api/auth/login`
-- **Description**: Login user
-- **Body**:
-  ```json
-  {
-    "email": "string",
-    "password": "string"
-  }
-  ```
-
-## User Routes
-
-### Get Current User Profile
-- **GET** `/api/users/me`
-- **Description**: Get current user profile
-- **Auth**: Required
-
-### Update User Profile
-- **PUT** `/api/users/profile`
-- **Description**: Update user profile
-- **Auth**: Required
-- **Body**:
-  ```json
-  {
-    "profileType": "freelancer" | "client",
-    "title": "string",
-    "description": "string",
-    "experience": "number",
-    "education": "string",
-    "location": "string",
-    "languages": ["string"],
-    "portfolio": "string",
-    "companyName": "string",
-    "website": "string",
-    "industry": "string"
-  }
-  ```
-
-### Get User by ID
-- **GET** `/api/users/:id`
-- **Description**: Get user by ID
-- **Auth**: Required
-
-## Project Routes
-
-### Get All Projects
-- **GET** `/api/projects`
-- **Description**: Get all projects with filters
-- **Query Parameters**:
-  - `status`: OPEN | IN_PROGRESS | COMPLETED | CANCELLED
-  - `skill`: string
-  - `search`: string
-  - `minBudget`: number
-  - `maxBudget`: number
-  - `sortBy`: createdAt | budget | deadline
-  - `sortOrder`: asc | desc
-
-### Get Project by ID
-- **GET** `/api/projects/:id`
-- **Description**: Get project by ID
-
-### Create Project
-- **POST** `/api/projects`
-- **Description**: Create a new project
-- **Auth**: Required (Client only)
-- **Body**:
-  ```json
-  {
-    "title": "string",
-    "description": "string",
-    "budget": "number",
-    "deadline": "date",
-    "skills": ["skillId"]
-  }
-  ```
-
-## Bid Routes
-
-### Get Bids for Project
-- **GET** `/api/bids/project/:projectId`
-- **Description**: Get all bids for a project
-
-### Get Bids by Freelancer
-- **GET** `/api/bids/freelancer/:freelancerId`
-- **Description**: Get all bids by a freelancer
-
-### Create Bid
-- **POST** `/api/bids`
-- **Description**: Create a new bid
-- **Auth**: Required (Freelancer only)
-- **Body**:
-  ```json
-  {
-    "projectId": "string",
-    "amount": "number",
-    "duration": "number",
-    "coverLetter": "string"
-  }
-  ```
-
-### Update Bid Status
-- **PATCH** `/api/bids/:id/status`
-- **Description**: Update bid status
-- **Auth**: Required (Client only)
-- **Body**:
-  ```json
-  {
-    "status": "ACCEPTED" | "REJECTED"
-  }
-  ```
-
-### Withdraw Bid
-- **DELETE** `/api/bids/:id`
-- **Description**: Withdraw a bid
-- **Auth**: Required (Freelancer only)
-
-## Contract Routes
-
-### Get User Contracts
-- **GET** `/api/contracts`
-- **Description**: Get all contracts for a user
-- **Auth**: Required
-
-### Get Contract by ID
-- **GET** `/api/contracts/:id`
-- **Description**: Get contract by ID
-- **Auth**: Required
-
-### Update Contract Status
-- **PATCH** `/api/contracts/:id/status`
-- **Description**: Update contract status
-- **Auth**: Required
-- **Body**:
-  ```json
-  {
-    "status": "ACTIVE" | "COMPLETED" | "TERMINATED" | "DISPUTED"
-  }
-  ```
-
-### Add Contract Review
-- **POST** `/api/contracts/:id/reviews`
-- **Description**: Add a review to the contract
-- **Auth**: Required
-- **Body**:
-  ```json
-  {
-    "rating": "number",
-    "comment": "string"
-  }
-  ```
-
-## Payment Routes
-
-### Get Contract Payments
-- **GET** `/api/payments/contract/:contractId`
-- **Description**: Get all payments for a contract
-- **Auth**: Required
-
-### Create Payment
-- **POST** `/api/payments`
-- **Description**: Create a new payment
-- **Auth**: Required (Client only)
-- **Body**:
-  ```json
-  {
-    "contractId": "string",
-    "amount": "number",
-    "description": "string"
-  }
-  ```
-
-### Update Payment Status
-- **PATCH** `/api/payments/:id/status`
-- **Description**: Update payment status
-- **Auth**: Required (Client only)
-- **Body**:
-  ```json
-  {
-    "status": "COMPLETED" | "FAILED" | "REFUNDED"
-  }
-  ```
-
-## Gig Routes
-
-### Get All Gigs
-- **GET** `/api/gigs`
-- **Description**: Get all gigs with filters
-- **Query Parameters**:
-  - `category`: string
-  - `subcategory`: string
-  - `minPrice`: number
-  - `maxPrice`: number
-  - `search`: string
-  - `sort`: price | rating | date
-
-### Get Gig by ID
-- **GET** `/api/gigs/:id`
-- **Description**: Get gig by ID
-
-### Create Gig
-- **POST** `/api/gigs`
-- **Description**: Create a new gig
-- **Auth**: Required (Freelancer only)
-- **Body**:
-  ```json
-  {
-    "title": "string",
-    "description": "string",
-    "price": "number",
-    "deliveryTime": "number",
-    "revisions": "number",
-    "category": "string",
-    "subcategory": "string",
-    "tags": ["string"],
-    "images": ["string"],
-    "requirements": ["string"]
-  }
-  ```
-
-### Update Gig
-- **PUT** `/api/gigs/:id`
-- **Description**: Update gig
-- **Auth**: Required (Freelancer only)
-- **Body**: Same as Create Gig
-
-### Order Gig
-- **POST** `/api/gigs/:id/order`
-- **Description**: Order a gig
-- **Auth**: Required (Client only)
-- **Body**:
-  ```json
-  {
-    "requirements": "string",
-    "deliveryTime": "number",
-    "revisions": "number"
-  }
-  ```
-
-### Get User Orders
-- **GET** `/api/gigs/orders`
-- **Description**: Get all orders for a user
-- **Auth**: Required
-- **Query Parameters**:
-  - `status`: PENDING | IN_PROGRESS | COMPLETED | CANCELLED
-  - `role`: client | freelancer
-
-## Skill Routes
-
-### Get All Skills
-- **GET** `/api/skills`
-- **Description**: Get all skills
-
-### Search Skills
-- **GET** `/api/skills/search`
-- **Description**: Search skills by name or category
-- **Query Parameters**:
-  - `search`: string
-  - `category`: string
-
-### Get Skill by ID
-- **GET** `/api/skills/:id`
-- **Description**: Get skill by ID
