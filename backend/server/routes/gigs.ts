@@ -91,12 +91,20 @@ router.get('/',
         status: 'ACTIVE'
       };
 
-      if (category) {
-        where.category = category;
+      if (category && typeof category === 'string') {
+        const formattedCategory = category
+          .split('-')
+          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        where.category = formattedCategory;
       }
 
-      if (subcategory) {
-        where.subcategory = subcategory;
+      if (subcategory && typeof subcategory === 'string') {
+        const formattedSubcategory = subcategory
+          .split('-')
+          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        where.subcategory = formattedSubcategory;
       }
 
       if (minPrice || maxPrice) {
@@ -130,13 +138,92 @@ router.get('/',
             select: {
               id: true,
               name: true,
-              freelancerProfile: true
+              freelancerProfile: {
+                select: {
+                  title: true,
+                  experience: true,
+                  location: true
+                }
+              }
+            }
+          },
+          reviews: {
+            select: {
+              rating: true,
+              comment: true,
+              createdAt: true
+            },
+            orderBy: {
+              createdAt: 'desc'
+            },
+            take: 3
+          },
+          orders: {
+            select: {
+              id: true
             }
           }
         }
       });
 
-      res.json(gigs);
+      // Format the response
+      const formattedGigs = gigs.map(gig => ({
+        id: gig.id,
+        title: gig.title,
+        description: gig.description,
+        pricing: {
+          amount: gig.price,
+          currency: 'USD',
+          deliveryTime: gig.deliveryTime,
+          revisions: gig.revisions
+        },
+        category: {
+          main: gig.category.toLowerCase().replace(/\s+/g, '-'),
+          sub: gig.subcategory.toLowerCase().replace(/\s+/g, '-')
+        },
+        tags: gig.tags,
+        images: gig.images,
+        requirements: gig.requirements,
+        stats: {
+          rating: gig.rating,
+          reviewCount: gig.reviews.length,
+          orderCount: gig.orders.length
+        },
+        freelancer: {
+          id: gig.freelancer.id,
+          name: gig.freelancer.name,
+          title: gig.freelancer.freelancerProfile?.title,
+          experience: gig.freelancer.freelancerProfile?.experience,
+          location: gig.freelancer.freelancerProfile?.location
+        },
+        recentReviews: gig.reviews.map(review => ({
+          rating: review.rating,
+          comment: review.comment,
+          date: review.createdAt
+        })),
+        createdAt: gig.createdAt,
+        updatedAt: gig.updatedAt
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          gigs: formattedGigs,
+          meta: {
+            total: formattedGigs.length,
+            filters: {
+              category: category || null,
+              subcategory: subcategory || null,
+              priceRange: {
+                min: minPrice ? Number(minPrice) : null,
+                max: maxPrice ? Number(maxPrice) : null
+              },
+              search: search || null,
+              sort: sort || 'date'
+            }
+          }
+        }
+      });
     } catch (error) {
       next(error);
     }

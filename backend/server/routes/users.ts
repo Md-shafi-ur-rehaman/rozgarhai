@@ -2,9 +2,42 @@ import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { protect, authorize, AuthRequest } from '../middleware/auth';
 import { CustomError } from '../middleware/errorHandler';
+import { validate } from '../middleware/validate';
+import { z } from 'zod';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Validation schemas
+const freelancerProfileSchema = z.object({
+  body: z.object({
+    title: z.string().min(2, 'Title must be at least 2 characters'),
+    description: z.string().min(10, 'Description must be at least 10 characters'),
+    experience: z.string().transform((val) => {
+      const num = parseInt(val, 10);
+      if (isNaN(num)) {
+        throw new Error('Experience must be a valid number');
+      }
+      return num;
+    }),
+    education: z.string().min(2, 'Education must be at least 2 characters'),
+    location: z.string().min(2, 'Location must be at least 2 characters'),
+    languages: z.array(z.string()).min(1, 'At least one language is required'),
+    portfolio: z.string().url('Portfolio must be a valid URL').optional(),
+    profileType: z.literal('freelancer')
+  })
+});
+
+const clientProfileSchema = z.object({
+  body: z.object({
+    companyName: z.string().min(2, 'Company name must be at least 2 characters'),
+    website: z.string().url('Website must be a valid URL').optional(),
+    description: z.string().min(10, 'Description must be at least 10 characters'),
+    industry: z.string().min(2, 'Industry must be at least 2 characters'),
+    location: z.string().min(2, 'Location must be at least 2 characters'),
+    profileType: z.literal('client')
+  })
+});
 
 // @route   GET /api/users/me
 // @desc    Get current user profile
@@ -12,12 +45,18 @@ const prisma = new PrismaClient();
 router.get('/me', protect, async (req: AuthRequest, res, next) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+      where: { id: req.user!.id },
       include: {
-        FreelancerProfile: true,
-        ClientProfile: true
+        freelancerProfile: true,
+        clientProfile: true
       }
     });
+
+    if (!user) {
+      const error = new Error('User not found') as CustomError;
+      error.statusCode = 404;
+      throw error;
+    }
 
     res.json({
       success: true,
@@ -33,19 +72,7 @@ router.get('/me', protect, async (req: AuthRequest, res, next) => {
 // @access  Private
 router.put('/profile', protect, async (req: AuthRequest, res, next) => {
   try {
-    const {
-      title,
-      description,
-      experience,
-      education,
-      location,
-      languages,
-      portfolio,
-      companyName,
-      website,
-      industry,
-      profileType // 'freelancer' or 'client'
-    } = req.body;
+    const { profileType } = req.body;
 
     if (!profileType || !['freelancer', 'client'].includes(profileType)) {
       const error = new Error('Profile type must be either freelancer or client') as CustomError;
@@ -55,9 +82,21 @@ router.put('/profile', protect, async (req: AuthRequest, res, next) => {
 
     let profile;
     if (profileType === 'freelancer') {
+      // Validate freelancer profile data
+      const result = await freelancerProfileSchema.parseAsync({ body: req.body });
+      const {
+        title,
+        description,
+        experience,
+        education,
+        location,
+        languages,
+        portfolio
+      } = result.body;
+
       // Check if freelancer profile exists
       let freelancerProfile = await prisma.freelancerProfile.findUnique({
-        where: { userId: req.user.id }
+        where: { userId: req.user!.id }
       });
 
       const freelancerData = {
@@ -67,13 +106,13 @@ router.put('/profile', protect, async (req: AuthRequest, res, next) => {
         education,
         location,
         languages: languages || [],
-        portfolio: portfolio || null
+        portfolio: portfolio || undefined
       };
 
       if (freelancerProfile) {
         // Update freelancer profile
         profile = await prisma.freelancerProfile.update({
-          where: { userId: req.user.id },
+          where: { userId: req.user!.id },
           data: freelancerData
         });
       } else {
@@ -81,19 +120,29 @@ router.put('/profile', protect, async (req: AuthRequest, res, next) => {
         profile = await prisma.freelancerProfile.create({
           data: {
             ...freelancerData,
-            userId: req.user.id
+            userId: req.user!.id
           }
         });
       }
     } else {
+      // Validate client profile data
+      const result = await clientProfileSchema.parseAsync({ body: req.body });
+      const {
+        companyName,
+        website,
+        description,
+        industry,
+        location
+      } = result.body;
+
       // Check if client profile exists
       let clientProfile = await prisma.clientProfile.findUnique({
-        where: { userId: req.user.id }
+        where: { userId: req.user!.id }
       });
 
       const clientData = {
         companyName,
-        website,
+        website: website || undefined,
         description,
         industry,
         location
@@ -102,7 +151,7 @@ router.put('/profile', protect, async (req: AuthRequest, res, next) => {
       if (clientProfile) {
         // Update client profile
         profile = await prisma.clientProfile.update({
-          where: { userId: req.user.id },
+          where: { userId: req.user!.id },
           data: clientData
         });
       } else {
@@ -110,7 +159,7 @@ router.put('/profile', protect, async (req: AuthRequest, res, next) => {
         profile = await prisma.clientProfile.create({
           data: {
             ...clientData,
-            userId: req.user.id
+            userId: req.user!.id
           }
         });
       }

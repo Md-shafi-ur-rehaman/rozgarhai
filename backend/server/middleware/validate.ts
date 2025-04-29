@@ -8,11 +8,19 @@ export const validate = (schema: AnyZodObject) => async (
   next: NextFunction
 ) => {
   try {
-    await schema.parseAsync({
-      body: req.body,
-      query: req.query,
-      params: req.params,
-    });
+    // Ensure req.body exists
+    if (!req.body) {
+      const error = new Error('Request body is missing') as CustomError;
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    // Parse the request body directly
+    const result = await schema.parseAsync(req.body);
+
+    // Replace the request body with the validated data
+    req.body = result;
+    
     return next();
   } catch (error) {
     if (error instanceof ZodError) {

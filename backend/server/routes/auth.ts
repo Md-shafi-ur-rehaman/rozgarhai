@@ -3,17 +3,36 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { CustomError } from '../middleware/errorHandler';
+import { validate } from '../middleware/validate';
+import { z } from 'zod';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Validation schemas
+const registerSchema = z.object({
+  body: z.object({
+    name: z.string().min(2, 'Name must be at least 2 characters'),
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+    role: z.enum(['FREELANCER', 'CLIENT']).optional()
+  })
+});
+
+const loginSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(1, 'Password is required')
+  })
+});
+
 // @route   POST /api/auth/register
 // @desc    Register a new user
 // @access  Public
-router.post('/register', async (req, res, next) => {
+router.post('/register', validate(registerSchema), async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
-    console.log(req.body);
+
     // Check if user exists
     const userExists = await prisma.user.findUnique({
       where: { email }
@@ -67,7 +86,7 @@ router.post('/register', async (req, res, next) => {
 // @route   POST /api/auth/login
 // @desc    Login user
 // @access  Public
-router.post('/login', async (req, res, next) => {
+router.post('/login', validate(loginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
