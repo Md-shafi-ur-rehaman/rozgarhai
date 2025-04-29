@@ -14,6 +14,86 @@ import {
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// @route   GET /api/gigs/orders
+// @desc    Get all orders for a user (both freelancer and client)
+// @access  Private
+router.get('/orders',
+  protect,
+  validate(orderQuerySchema),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { status } = req.query;
+      const userId = req.user!.id;
+      const userRole = req.user!.role;
+
+      const where: any = {};
+
+      // Filter based on authenticated user's role
+      if (userRole === 'FREELANCER') {
+        where.gig = {
+          freelancerId: userId
+        };
+      } else if (userRole === 'CLIENT') {
+        where.clientId = userId;
+      } else {
+        const error = new Error('Invalid user role') as CustomError;
+        error.statusCode = 403;
+        throw error;
+      }
+
+      if (status) {
+        where.status = status;
+      }
+
+      const orders = await prisma.gigOrder.findMany({
+        where,
+        include: {
+          gig: {
+            select: {
+              id: true,
+              title: true,
+              price: true,
+              description: true,
+              deliveryTime: true,
+              revisions: true,
+              freelancer: {
+                select: {
+                  id: true,
+                  name: true,
+                  freelancerProfile: {
+                    select: {
+                      title: true,
+                      experience: true,
+                      location: true,
+                      description: true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          client: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      res.json({
+        success: true,
+        data: orders
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // @route   POST /api/gigs
 // @desc    Create a new gig
 // @access  Private (Freelancer only)
@@ -384,38 +464,135 @@ router.post('/:id/order',
   }
 );
 
-// @route   GET /api/gigs/orders
-// @desc    Get all orders for a user
-// @access  Private
-router.get('/orders',
+// @route   GET /api/gigs/:id/orders
+// @desc    Get all orders for a specific gig
+// @access  Private (Freelancer only)
+router.get('/:id/orders',
   protect,
-  validate(orderQuerySchema),
+  authorize('FREELANCER'),
   async (req: AuthRequest, res, next) => {
     try {
-      const { status, role } = req.query;
+      const gigId = req.params.id;
       const userId = req.user!.id;
 
-      const where: any = {};
-      if (role === 'client') {
-        where.clientId = userId;
-      } else if (role === 'freelancer') {
-        where.gig = {
-          freelancerId: userId
-        };
+      // Check if gig exists and belongs to the freelancer
+      const gig = await prisma.gig.findUnique({
+        where: { id: gigId }
+      });
+
+      if (!gig) {
+        const error = new Error('Gig not found') as CustomError;
+        error.statusCode = 404;
+        throw error;
       }
 
-      if (status) {
-        where.status = status;
+      if (gig.freelancerId !== userId) {
+        const error = new Error('Not authorized') as CustomError;
+        error.statusCode = 403;
+        throw error;
       }
 
       const orders = await prisma.gigOrder.findMany({
-        where,
+        where: { gigId },
+        include: {
+          client: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      res.json({
+        success: true,
+        data: orders
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// @route   PATCH /api/gigs/orders/:id/status
+// @desc    Update order status (accept/reject) by freelancer
+// @access  Private (Freelancer only)
+router.patch('/orders/:id/status',
+  protect,
+  authorize('FREELANCER'),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { status } = req.body;
+      const orderId = req.params.id;
+      const userId = req.user!.id;
+
+      // Validate status
+      if (!['IN_PROGRESS', 'CANCELLED'].includes(status)) {
+        const error = new Error('Invalid status. Must be IN_PROGRESS or CANCELLED') as CustomError;
+        error.statusCode = 400;
+        throw error;
+      }
+
+      // Find the order and check if it belongs to the freelancer's gig
+      const order = await prisma.gigOrder.findUnique({
+        where: { id: orderId },
+        include: {
+          gig: {
+            select: {
+              id: true,
+              freelancerId: true,
+              title: true
+            }
+          }
+        }
+      });
+
+      if (!order) {
+        const error = new Error('Order not found') as CustomError;
+        error.statusCode = 404;
+        throw error;
+      }
+
+      // Check if the gig belongs to the freelancer
+      if (order.gig.freelancerId !== userId) {
+        const error = new Error('Not authorized to update this order') as CustomError;
+        error.statusCode = 403;
+        throw error;
+      }
+
+      // Check if order is in a valid state for update
+      if (order.status !== 'PENDING') {
+        const error = new Error('Order can only be updated when in PENDING status') as CustomError;
+        error.statusCode = 400;
+        throw error;
+      }
+
+      // Update the order status
+      const updatedOrder = await prisma.gigOrder.update({
+        where: { id: orderId },
+        data: { status },
         include: {
           gig: {
             select: {
               id: true,
               title: true,
-              price: true
+              price: true,
+              freelancer: {
+                select: {
+                  id: true,
+                  name: true,
+                  freelancerProfile: {
+                    select: {
+                      title: true,
+                      experience: true,
+                      location: true
+                    }
+                  }
+                }
+              }
             }
           },
           client: {
@@ -427,7 +604,10 @@ router.get('/orders',
         }
       });
 
-      res.json(orders);
+      res.json({
+        success: true,
+        data: updatedOrder
+      });
     } catch (error) {
       next(error);
     }
