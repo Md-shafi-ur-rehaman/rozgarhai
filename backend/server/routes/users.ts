@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
 const freelancerProfileSchema = z.object({
   body: z.object({
     title: z.string().min(2, 'Title must be at least 2 characters'),
-    description: z.string().min(10, 'Description must be at least 10 characters'),
+    bio: z.string().min(10, 'Description must be at least 10 characters'),
     experience: z.string().transform((val) => {
       const num = parseInt(val, 10);
       if (isNaN(num)) {
@@ -86,7 +86,7 @@ router.put('/profile', protect, async (req: AuthRequest, res, next) => {
       const result = await freelancerProfileSchema.parseAsync({ body: req.body });
       const {
         title,
-        description,
+        bio,
         experience,
         education,
         location,
@@ -101,7 +101,7 @@ router.put('/profile', protect, async (req: AuthRequest, res, next) => {
 
       const freelancerData = {
         title,
-        description,
+        bio,
         experience,
         education,
         location,
@@ -174,32 +174,5 @@ router.put('/profile', protect, async (req: AuthRequest, res, next) => {
   }
 });
 
-// @route   GET /api/users/:id
-// @desc    Get user by ID
-// @access  Private
-router.get('/:id', protect, async (req, res, next) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.params.id },
-      include: {
-        freelancerProfile: true,
-        clientProfile: true
-      }
-    });
-
-    if (!user) {
-      const error = new Error('User not found') as CustomError;
-      error.statusCode = 404;
-      throw error;
-    }
-
-    res.json({
-      success: true,
-      data: user
-    });
-  } catch (error) {
-    next(error);
-  }
-});
 
 export default router; 

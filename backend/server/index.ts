@@ -10,6 +10,7 @@ import contractRoutes from './routes/contracts';
 import paymentRoutes from './routes/payments';
 import gigRoutes from './routes/gigs';
 import skillRoutes from './routes/skills';
+import sellers from './routes/sellers';
 
 // Load environment variables
 dotenv.config();
@@ -42,6 +43,7 @@ app.use('/api/contracts', contractRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/gigs', gigRoutes);
 app.use('/api/skills', skillRoutes);
+app.use('/api/sellers', sellers);
 
 // Error handling middleware
 app.use(errorHandler);
